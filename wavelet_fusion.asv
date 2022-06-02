@@ -1,0 +1,49 @@
+function wavelet_fusion()
+    close all
+    
+    VL = imread('TV_VL_0006.bmp');
+    VL_hsv = rgb2hsv(VL);
+    
+    IR = imread('TV_IR_0006.bmp');
+    IR_hsv = rgb2hsv(IR);
+    
+    F = fuse(IR_hsv(:,:,1),VL_hsv(:,:,1));
+    F(:,:,2) = fuse(IR_hsv(:,:,2),VL_hsv(:,:,2));
+    F(:,:,3) = fuse(IR_hsv(:,:,3),VL_hsv(:,:,3));
+    
+    F = hsv2rgb(F);
+    
+    subplot(1,3,1); imshow(IR,[]); title('IR');
+    subplot(1,3,2); imshow(VL,[]); title('VL');
+    subplot(1,3,3); imshow(F,[]); title('F');
+end
+
+
+function [F] = fuse(IR, VL)
+    [IR_apx, IR_h, IR_v, IR_d] = dwt2(IR, 'haar');
+    [VL_apx, VL_h, VL_v, VL_d] = dwt2(VL, 'haar');
+    
+    F_apx = IR_apx;
+    F_apx(:,:,2) = VL_apx;
+    F_apx = mean(F_apx, 3);
+    
+    sigma_IR_h = var(IR_h(:));
+    sigma_VL_h = var(VL_h(:));
+    sigma_IR_v = var(IR_v(:));
+    sigma_VL_v = var(VL_v(:));
+    sigma_IR_d = var(IR_d(:));
+    sigma_VL_d = var(VL_d(:));
+    
+    W_IR_h = sigma_IR_h / (sigma_IR_h+sigma_VL_h);
+    W_VL_h = sigma_VL_h / (sigma_IR_h+sigma_VL_h);
+    W_IR_v = sigma_IR_v / (sigma_IR_v+sigma_VL_v);
+    W_VL_v = sigma_VL_v / (sigma_IR_v+sigma_VL_v);
+    W_IR_d = sigma_IR_d / (sigma_IR_d+sigma_VL_d);
+    W_VL_d = sigma_VL_d / (sigma_IR_d+sigma_VL_d);
+    
+    F_h = W_IR_h*IR_h + W_VL_h*VL_h;
+    F_v = W_IR_v*IR_v + W_VL_v*VL_v;
+    F_d = W_IR_d*IR_d + W_VL_d*VL_d;
+    
+    F = idwt2(F_apx, F_h, F_v, F_d, 'haar');
+end
